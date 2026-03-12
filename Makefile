@@ -31,10 +31,10 @@ I2C_LDLIBS := -lrpi_i2c -lm
 all: gpio i2c test_led test_button test_buzzer test_temperature
 
 gpio:
-	$(MAKE) -C Common/rpi_gpio PLATFORM=$(GPIO_PLATFORM) BUILD_PROFILE=$(GPIO_PROFILE)
+	$(MAKE) -C hardware-component-samples/common/rpi_gpio PLATFORM=$(GPIO_PLATFORM) BUILD_PROFILE=$(GPIO_PROFILE)
 
 i2c:
-	$(MAKE) -C hardware-component-samples/Common/rpi_i2c PLATFORM=$(I2C_PLATFORM) BUILD_PROFILE=$(I2C_PROFILE)
+	$(MAKE) -C hardware-component-samples/common/rpi_i2c PLATFORM=$(I2C_PLATFORM) BUILD_PROFILE=$(I2C_PROFILE)
 
 test_led: tests/test_led.c
 	$(CC) $(GPIO_CFLAGS) -o $@ $< $(GPIO_LDFLAGS) $(GPIO_LDLIBS)
