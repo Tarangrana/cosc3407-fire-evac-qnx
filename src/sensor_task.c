@@ -5,6 +5,7 @@
 #include <string.h>
 #include <errno.h>
 #include <time.h>
+#include "shared.h" //declare shared variables and function prototypes
 
 #include <devctl.h>
 #include <hw/i2c.h>
