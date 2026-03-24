@@ -4,6 +4,8 @@ QNX_USER := root
 QNX_DIR := /root
 
 CC := qcc
+TARGET := fire_evac
+SRCS := src/main.c src/sensor_task.c src/alarm_task.c src/exit_task.c
 
 # GPIO
 GPIO_INC := -ICommon/system/gpio -ICommon/rpi_gpio/public
@@ -25,16 +27,26 @@ I2C_BUILD_DIR := hardware-component-samples/Common/rpi_i2c/build/$(I2C_PLATFORM)
 I2C_LDFLAGS := -L$(I2C_BUILD_DIR)
 I2C_LDLIBS := -lrpi_i2c -lm
 
-.PHONY: all gpio i2c clean ssh \
-        deploy_led deploy_button deploy_buzzer deploy_temperature
+# Final application flags
+APP_INC := -Iinclude $(GPIO_INC)
+APP_CFLAGS := -V$(VARIANT) -Wall -Wextra -O2 -g $(APP_INC)
+APP_LDFLAGS := $(GPIO_LDFLAGS)
+APP_LDLIBS := $(GPIO_LDLIBS)
 
-all: gpio i2c test_led test_button test_buzzer test_temperature
+.PHONY: all gpio i2c clean ssh \
+        deploy_led deploy_button deploy_buzzer deploy_temperature deploy_lcd \
+        deploy_app run_app
+
+all: gpio i2c test_led test_button test_buzzer test_temperature $(TARGET)
 
 gpio:
 	$(MAKE) -C hardware-component-samples/common/rpi_gpio PLATFORM=$(GPIO_PLATFORM) BUILD_PROFILE=$(GPIO_PROFILE)
 
 i2c:
 	$(MAKE) -C hardware-component-samples/common/rpi_i2c PLATFORM=$(I2C_PLATFORM) BUILD_PROFILE=$(I2C_PROFILE)
+
+$(TARGET): $(SRCS)
+	$(CC) $(APP_CFLAGS) -o $@ $(SRCS) $(APP_LDFLAGS) $(APP_LDLIBS)
 
 test_led: tests/test_led.c
 	$(CC) $(GPIO_CFLAGS) -o $@ $< $(GPIO_LDFLAGS) $(GPIO_LDLIBS)
@@ -47,6 +59,7 @@ test_buzzer: tests/test_buzzer.c
 
 test_temperature: tests/test_temperature.c
 	$(CC) $(GPIO_CFLAGS) -o $@ $< $(GPIO_LDFLAGS) $(GPIO_LDLIBS)
+
 test_lcd: tests/test_lcd.c
 	$(CC) -V$(VARIANT) -Wall -Wextra -O2 -g -o $@ $<
 
@@ -65,8 +78,14 @@ deploy_buzzer: test_buzzer
 deploy_temperature: test_temperature
 	tar -cf - test_temperature | ssh $(QNX_USER)@$(QNX_IP) "cd $(QNX_DIR) && tar -xf - && /proc/boot/chmod +x test_temperature"
 
+deploy_app: $(TARGET)
+	tar -cf - $(TARGET) | ssh $(QNX_USER)@$(QNX_IP) "cd $(QNX_DIR) && tar -xf - && /proc/boot/chmod +x $(TARGET)"
+
+run_app: deploy_app
+	ssh -tt $(QNX_USER)@$(QNX_IP) "cd $(QNX_DIR) && ./$(TARGET)"
+
 ssh:
 	ssh $(QNX_USER)@$(QNX_IP)
 
 clean:
-	-del /q test_led test_button test_buzzer test_temperature 2>NUL || exit 0
+	-del /q test_led test_button test_buzzer test_temperature test_lcd $(TARGET) 2>NUL || exit 0

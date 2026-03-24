@@ -1,41 +1,54 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
-#include <semaphore.h>
+#include <rpi_gpio.h>
 #include "shared.h"
 
-// Buzzer GPIO pin (you'll define this based on your hardware setup)
-#define BUZZER_PIN 17  // Example GPIO pin
+#define BUZZER_PIN GPIO18
 
-void* alarm_task(void* arg) {
+void* alarm_task(void* arg)
+{
+    int local_fire_status;
+
     (void)arg;
-    
-    int buzzer_active = 0;
-    
-    printf("[Alarm] Task started (priority: HIGH)\n");
-    
-    while (1) {
-        // Check fire status with semaphore protection
-        sem_wait(&fire_sem);
-        int current_fire = fire_status;
-        sem_post(&fire_sem);
-        
-        // Control buzzer based on fire status
-        if (current_fire && !buzzer_active) {
-            // Activate buzzer
-            printf("[Alarm] FIRE DETECTED! Activating alarm...\n");
-            // TODO: Add GPIO code to activate buzzer
-            buzzer_active = 1;
-        }
-        else if (!current_fire && buzzer_active) {
-            // Deactivate buzzer
-            printf("[Alarm] Fire cleared. Deactivating alarm...\n");
-            // TODO: Add GPIO code to deactivate buzzer
-            buzzer_active = 0;
-        }
-        
-        sleep(1);  // Check every second
+
+    if (rpi_gpio_setup(BUZZER_PIN, GPIO_OUT) != 0)
+    {
+        perror("[Alarm Task] Failed to configure buzzer output");
+        return NULL;
     }
-    
+
+    if (rpi_gpio_output(BUZZER_PIN, GPIO_LOW) != 0)
+    {
+        perror("[Alarm Task] Failed to initialize buzzer OFF");
+    }
+
+    printf("[Alarm Task] Buzzer initialized on GPIO18.\n");
+
+    while (1)
+    {
+        sem_wait(&fire_sem);
+        local_fire_status = fire_status;
+        sem_post(&fire_sem);
+
+        if (local_fire_status == 1)
+        {
+            if (rpi_gpio_output(BUZZER_PIN, GPIO_HIGH) != 0)
+            {
+                perror("[Alarm Task] Failed to turn buzzer ON");
+            }
+            printf("[Alarm Task] FIRE ALERT! Buzzer ON.\n");
+        }
+        else
+        {
+            if (rpi_gpio_output(BUZZER_PIN, GPIO_LOW) != 0)
+            {
+                perror("[Alarm Task] Failed to turn buzzer OFF");
+            }
+            printf("[Alarm Task] System normal. Alarm OFF.\n");
+        }
+
+        sleep(1);
+    }
+
     return NULL;
 }
