@@ -8,7 +8,8 @@ TARGET := fire_evac
 
 GPIO_INC := -Ihardware-component-samples/common/rpi_gpio/public
 I2C_INC  := -Ihardware-component-samples/common/rpi_i2c/public
-INC := -Iinclude $(GPIO_INC) $(I2C_INC)
+SYS_GPIO_INC := -Ihardware-component-samples/common/system/gpio
+INC := -Iinclude $(GPIO_INC) $(I2C_INC) $(SYS_GPIO_INC)
 
 CFLAGS := -V$(VARIANT) -Wall -Wextra -O2 -g $(INC)
 
@@ -21,7 +22,7 @@ I2C_PROFILE := debug
 I2C_BUILD_DIR := hardware-component-samples/common/rpi_i2c/build/$(I2C_PLATFORM)-$(I2C_PROFILE)
 
 LDFLAGS := -L$(GPIO_BUILD_DIR) -L$(I2C_BUILD_DIR)
-LDLIBS := -lrpi_gpio -lrpi_i2c -lm -lpthread
+LDLIBS := -lrpi_gpio -lrpi_i2c -lm 
 
 SRCS := src/main.c src/sensor_task.c src/alarm_task.c src/exit_task.c
 
