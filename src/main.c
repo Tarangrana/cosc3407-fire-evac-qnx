@@ -6,8 +6,8 @@
 #include "shared.h"
 
 int fire_status = 0;
-int exit_path = 0;
-int current_temp = 0;
+int exit_path = 0; // 0 for exit A, 1 for exit B
+int current_temp = 0; // Current temperature in the building (reading the sensor thread will update this variable)
 sem_t fire_sem;
 
 int main(void)
