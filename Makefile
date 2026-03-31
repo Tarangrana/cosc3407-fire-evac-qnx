@@ -60,6 +60,9 @@ test_buzzer: tests/test_buzzer.c
 test_temperature: tests/test_temperature.c
 	$(CC) $(GPIO_CFLAGS) -o $@ $< $(GPIO_LDFLAGS) $(GPIO_LDLIBS)
 
+test_moisture: tests/test_moisture.c
+	$(CC) $(GPIO_CFLAGS) -o $@ $< $(GPIO_LDFLAGS) $(GPIO_LDLIBS)
+
 test_lcd: tests/test_lcd.c
 	$(CC) -V$(VARIANT) -Wall -Wextra -O2 -g -o $@ $<
 
@@ -77,6 +80,9 @@ deploy_buzzer: test_buzzer
 
 deploy_temperature: test_temperature
 	tar -cf - test_temperature | ssh $(QNX_USER)@$(QNX_IP) "cd $(QNX_DIR) && tar -xf - && /proc/boot/chmod +x test_temperature"
+
+deploy_moisture: test_moisture
+	tar -cf - test_moisture | ssh $(QNX_USER)@$(QNX_IP) "cd $(QNX_DIR) && tar -xf - && /proc/boot/chmod +x test_moisture"
 
 deploy_app: $(TARGET)
 	tar -cf - $(TARGET) | ssh $(QNX_USER)@$(QNX_IP) "cd $(QNX_DIR) && tar -xf - && /proc/boot/chmod +x $(TARGET)"
