@@ -20,6 +20,10 @@
 #define LCD_ADDR 0x3E
 #define I2C_DEV  "/dev/i2c1"
 
+#define BUTTON_PIN GPIO24
+#define BUTTON_PRESSED 8
+#define BUTTON_RELEASED 4
+
 // ---------- LCD helpers ----------
 static int i2c_send_bytes(int fd, uint8_t addr7, const uint8_t *bytes, size_t n)
 {
@@ -217,6 +221,26 @@ static int get_stable_dht11(float *temp, float *hum)
     return -1;
 }
 
+static int init_sim_button(void)
+{
+    if (rpi_gpio_setup_pull(BUTTON_PIN, GPIO_IN, GPIO_PUD_UP))
+    {
+        perror("rpi_gpio_setup_pull");
+        return -1;
+    }
+    return 0;
+}
+
+static int button_is_pressed(void)
+{
+    unsigned level = 0;
+
+    if (rpi_gpio_input(BUTTON_PIN, &level))
+        return 0;
+
+    return (level == BUTTON_PRESSED);
+}
+
 // ---------- Sensor thread ----------
 void* sensor_task(void* arg)
 {
@@ -229,54 +253,97 @@ void* sensor_task(void* arg)
         return NULL;
     }
 
+    if (init_sim_button() != 0)
+    {
+        close(lcd_fd);
+        return NULL;
+    }
+
     lcd_boot(lcd_fd);
     lcd_show(lcd_fd, "SMART FIRE EVAC", "System Starting");
     sleep(2);
 
     printf("[Sensor] Task started\n");
 
+    int sim_fire = 0;
+    int last_button = 0;
+
     while (1)
     {
+        int pressed = button_is_pressed();
+
+        // Toggle simulation mode only on new press
+        if (pressed && !last_button)
+        {
+            sim_fire = !sim_fire;
+
+            if (sim_fire)
+                printf("[Sensor] Button pressed -> SIMULATED FIRE ON\n");
+            else
+                printf("[Sensor] Button pressed -> SIMULATED FIRE OFF\n");
+
+            usleep(200000); // simple debounce
+        }
+
+        last_button = pressed;
+
         float temp = 0.0f;
         float hum = 0.0f;
         int fire = 0;
 
-        if (get_stable_dht11(&temp, &hum) == 0)
+        if (sim_fire)
         {
-            if ((int)temp >= THRESHOLD)
-                fire = 1;
+            temp = 60.0f;   // fake high temperature
+            hum  = 0.0f;
+            fire = 1;
 
             sem_wait(&fire_sem);
             current_temp = (int)temp;
             fire_status = fire;
             sem_post(&fire_sem);
 
-            char l1[17], l2[17];
-
-            if (!fire)
-            {
-                snprintf(l1, sizeof(l1), "Temp:%2dC SAFE", (int)temp);
-                snprintf(l2, sizeof(l2), "Alarm:OFF Exit:A");
-                lcd_show(lcd_fd, l1, l2);
-
-                printf("[Sensor] Temp=%d C, Hum=%d%% -> SAFE\n", (int)temp, (int)hum);
-            }
-            else
-            {
-                snprintf(l1, sizeof(l1), "Temp:%2dC FIRE!", (int)temp);
-                snprintf(l2, sizeof(l2), "ALARM ON Exit:B");
-                lcd_show(lcd_fd, l1, l2);
-
-                printf("[Sensor] Temp=%d C, Hum=%d%% -> FIRE DETECTED\n", (int)temp, (int)hum);
-            }
+            lcd_show(lcd_fd, "Temp:60C FIRE!", "SIM BUTTON Exit:B");
+            printf("[Sensor] SIMULATED FIRE DETECTED\n");
         }
         else
         {
-            lcd_show(lcd_fd, "Sensor Error", "Read Failed");
-            printf("[Sensor] Failed to read temperature sensor\n");
+            if (get_stable_dht11(&temp, &hum) == 0)
+            {
+                if ((int)temp >= THRESHOLD)
+                    fire = 1;
+
+                sem_wait(&fire_sem);
+                current_temp = (int)temp;
+                fire_status = fire;
+                sem_post(&fire_sem);
+
+                char l1[17], l2[17];
+
+                if (!fire)
+                {
+                    snprintf(l1, sizeof(l1), "Temp:%2dC SAFE", (int)temp);
+                    snprintf(l2, sizeof(l2), "Alarm:OFF Exit:A");
+                    lcd_show(lcd_fd, l1, l2);
+
+                    printf("[Sensor] Temp=%d C, Hum=%d%% -> SAFE\n", (int)temp, (int)hum);
+                }
+                else
+                {
+                    snprintf(l1, sizeof(l1), "Temp:%2dC FIRE!", (int)temp);
+                    snprintf(l2, sizeof(l2), "ALARM ON Exit:B");
+                    lcd_show(lcd_fd, l1, l2);
+
+                    printf("[Sensor] Temp=%d C, Hum=%d%% -> FIRE DETECTED\n", (int)temp, (int)hum);
+                }
+            }
+            else
+            {
+                lcd_show(lcd_fd, "Sensor Error", "Read Failed");
+                printf("[Sensor] Failed to read temperature sensor\n");
+            }
         }
 
-        sleep(2);
+        usleep(300000); // checks button more often than sleep(2)
     }
 
     close(lcd_fd);

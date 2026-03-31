@@ -89,9 +89,9 @@ int main(void) {
 
     lcd_boot(fd);
     lcd_set_cursor(fd, 0, 0);
-    lcd_print16(fd, "HELLO");
+    lcd_print16(fd, "Vikas");
     lcd_set_cursor(fd, 1, 0);
-    lcd_print16(fd, "SMART FIRE");
+    lcd_print16(fd, "Ki Mummy Cutie");
 
     sleep(5);
 
