@@ -1,3 +1,17 @@
+/*
+ * exit_task.c
+ *
+ * Purpose:
+ * Controls exit guidance LEDs based on system fire status.
+ *
+ * Source references:
+ * - QNX Raspberry Pi GPIO sample library
+ *
+ * Notes:
+ * LED control logic was adapted from QNX GPIO examples and customized
+ * for evacuation routing in this project.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>

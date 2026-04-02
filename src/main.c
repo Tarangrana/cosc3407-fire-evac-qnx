@@ -1,3 +1,24 @@
+/*
+ * main.c
+ * Smart Fire Evacuation and Exit Guidance System
+ * COSC3407 - Operating Systems I
+ *
+ * Purpose:
+ * Initializes shared resources and creates concurrent tasks for
+ * sensor monitoring, alarm control, and exit guidance.
+ *
+ * Source references:
+ * - QNX Neutrino documentation for POSIX threads and scheduling:
+ *   https://www.qnx.com/developers/docs/8.0/#com.qnx.doc.neutrino.getting_started/topic/s1_procs_Thread_attributes_scheduling.html
+ *
+ * - QNX semaphore documentation:
+ *   https://www.qnx.com/developers/docs/8.0/#com.qnx.doc.neutrino.sys_arch/topic/kernel_Semaphores.html
+ *
+ * Notes:
+ * Thread creation, scheduling, and synchronization were implemented using QNX/POSIX concepts
+ * and adapted into a three-task architecture for this project.
+ */
+ 
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -8,7 +29,7 @@
 int fire_status = 0;
 int exit_path = 0; // 0 for exit A, 1 for exit B
 int current_temp = 0; // Current temperature in the building (reading the sensor thread will update this variable)
-sem_t fire_sem;
+sem_t fire_sem; // // Semaphore used to protect shared variables when multiple threads access them
 
 int main(void)
 {
@@ -30,13 +51,14 @@ int main(void)
     pthread_attr_setinheritsched(&sensor_attr, PTHREAD_EXPLICIT_SCHED);
     pthread_attr_setinheritsched(&alarm_attr, PTHREAD_EXPLICIT_SCHED);
     pthread_attr_setinheritsched(&exit_attr, PTHREAD_EXPLICIT_SCHED);
+    // We explicitly set the scheduling policy so the thread uses the priorities defined here instead of inheriting the default scheduling from the main thread
 
     pthread_attr_setschedpolicy(&sensor_attr, SCHED_RR);
     pthread_attr_setschedpolicy(&alarm_attr, SCHED_RR);
     pthread_attr_setschedpolicy(&exit_attr, SCHED_RR);
 
     sensor_param.sched_priority = 20;
-    alarm_param.sched_priority  = 30; // highest priority
+    alarm_param.sched_priority  = 30; // Highest priority because the alarm must respond immediately when fire is detected
     exit_param.sched_priority   = 10;
 
     pthread_attr_setschedparam(&sensor_attr, &sensor_param);

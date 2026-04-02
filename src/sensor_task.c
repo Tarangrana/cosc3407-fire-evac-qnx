@@ -1,3 +1,23 @@
+/*
+ * sensor_task.c
+ * Smart Fire Evacuation and Exit Guidance System
+ * COSC3407 - Operating Systems I
+ *
+ * Purpose:
+ * Reads sensor or button input and updates the shared fire state.
+ * and shows system status on the LCD.
+ *
+ * Source references:
+ * - QNX Raspberry Pi GPIO sample library:
+ *   https://gitlab.com/qnx/projects/hardware-component-samples
+ * - QNX device and I2C APIs used through devctl() and DCMD_I2C_SEND
+ *
+ * Notes:
+ * GPIO access patterns were adapted from QNX sample interfaces,
+ * while the LCD/I2C communication and project-specific fire logic
+ * were integrated and refined for this system.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -20,7 +40,7 @@
 #define LCD_ADDR 0x3E
 #define I2C_DEV  "/dev/i2c1"
 
-#define BUTTON_PIN GPIO24
+#define BUTTON_PIN GPIO18
 #define BUTTON_PRESSED 8
 #define BUTTON_RELEASED 4
 
