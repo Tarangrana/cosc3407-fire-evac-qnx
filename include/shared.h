@@ -1,3 +1,19 @@
+/*
+ * shared.h
+ * Smart Fire Evacuation and Exit Guidance System
+ * COSC3407 - Operating Systems I
+ *
+ * Purpose:
+ * Declares shared variables, synchronization objects, and task function prototypes used across the project modules.
+ *
+ * Source references:
+ * - QNX semaphore documentation:
+ *   https://www.qnx.com/developers/docs/8.0/#com.qnx.doc.neutrino.sys_arch/topic/kernel_Semaphores.html
+ *
+ * Notes:
+ * The synchronization concept is based on QNX semaphore usage, while the shared state design and module organization are specific to this project.
+ */
+
 #ifndef SHARED_H
 #define SHARED_H
 

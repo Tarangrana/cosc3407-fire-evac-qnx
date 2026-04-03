@@ -1,3 +1,18 @@
+# Makefile
+# Smart Fire Evacuation and Exit Guidance System
+# COSC3407 - Operating Systems I
+#
+# Purpose:
+# Automates compilation, library builds, test builds, deployment, and execution of the project on the QNX Raspberry Pi target.
+#
+# Source references:
+# - QNX cross-compilation documentation for qcc
+# - Standard GNU Make build automation practices
+#
+# Notes:
+# This Makefile was adapted to match the project directory layout,required sample-library builds, test programs, 
+# and SSH-based deployment workflow used in this project.
+
 VARIANT := gcc_ntoaarch64le
 QNX_IP := 192.168.10.2
 QNX_USER := root

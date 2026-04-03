@@ -4,8 +4,7 @@
  * COSC3407 - Operating Systems I
  *
  * Purpose:
- * Reads sensor or button input and updates the shared fire state.
- * and shows system status on the LCD.
+ * Reads sensor or button input, updates the shared fire state and shows system status on the LCD.
  *
  * Source references:
  * - QNX Raspberry Pi GPIO sample library:
@@ -40,11 +39,13 @@
 #define LCD_ADDR 0x3E
 #define I2C_DEV  "/dev/i2c1"
 
-#define BUTTON_PIN GPIO18
+#define BUTTON_PIN GPIO24
 #define BUTTON_PRESSED 8
 #define BUTTON_RELEASED 4
 
-// ---------- LCD helpers ----------
+// LCD helper functions
+
+// Prepare the data packet for the LCD and send it over I2C 
 static int i2c_send_bytes(int fd, uint8_t addr7, const uint8_t *bytes, size_t n)
 {
     uint8_t buf[sizeof(i2c_send_t) + 8];
@@ -61,30 +62,33 @@ static int i2c_send_bytes(int fd, uint8_t addr7, const uint8_t *bytes, size_t n)
     return devctl(fd, DCMD_I2C_SEND, buf, (int)(sizeof(i2c_send_t) + n), NULL);
 }
 
+// Give instructions to the LCD controller.
 static void lcd_cmd(int fd, uint8_t c)
 {
     uint8_t msg[2] = {0x80, c};
     i2c_send_bytes(fd, LCD_ADDR, msg, 2);
 }
 
+// Send text and data to show on the LCD
 static void lcd_data(int fd, uint8_t d)
 {
     uint8_t msg[2] = {0x40, d};
     i2c_send_bytes(fd, LCD_ADDR, msg, 2);
 }
-
+// clears the LCD screen
 static void lcd_clear(int fd)
 {
     lcd_cmd(fd, 0x01);
     usleep(2000);
 }
-
+// Move the LCD cursor to the right row and column
 static void lcd_set_cursor(int fd, int row, int col)
 {
     uint8_t addr = (row == 0) ? 0x00 : 0x40;
     lcd_cmd(fd, (uint8_t)(0x80 | (addr + (uint8_t)col)));
 }
 
+// Show text on one LCD line, adjusting it to 16 characters
 static void lcd_print16(int fd, const char *text)
 {
     char line[16];
@@ -101,6 +105,7 @@ static void lcd_print16(int fd, const char *text)
         lcd_data(fd, (uint8_t)line[i]);
 }
 
+// Send the sequence to start up and set up the LCD
 static void lcd_boot(int fd)
 {
     usleep(50000);
@@ -116,6 +121,7 @@ static void lcd_boot(int fd)
     lcd_clear(fd);
 }
 
+// To quickly show two lines on the LCD
 static void lcd_show(int fd, const char *l1, const char *l2)
 {
     lcd_set_cursor(fd, 0, 0);
@@ -124,7 +130,8 @@ static void lcd_show(int fd, const char *l1, const char *l2)
     lcd_print16(fd, l2);
 }
 
-// ---------- DHT helpers ----------
+// DHT helper functions
+// Short delay function to match the DHT11 sensor’s timing requirements 
 static void delay_us(long us)
 {
     struct timespec start, now;
@@ -140,6 +147,7 @@ static void delay_us(long us)
     } while (1);
 }
 
+// Read the current signal level from the DHT sensor pin
 static int read_level(unsigned *level)
 {
     if (rpi_gpio_input(DHT_PIN, level))
@@ -147,6 +155,7 @@ static int read_level(unsigned *level)
     return 0;
 }
 
+// Wait until the sensor signal changes to the target state or the timeout expires
 static int wait_for_state(unsigned target, int timeout_us)
 {
     unsigned level = 0;
@@ -162,6 +171,7 @@ static int wait_for_state(unsigned target, int timeout_us)
     return -1;
 }
 
+// Measure how long the signal is HIGH to tell if the bit is 0 or 1
 static int measure_high_pulse_us(int max_us)
 {
     unsigned level = 0;
@@ -180,6 +190,7 @@ static int measure_high_pulse_us(int max_us)
     return -2;
 }
 
+// Read the 40-bit response from the DHT11 and get humidity, temperature, and checksum
 static int read_dht11(float *temperature, float *humidity)
 {
     uint8_t data[5] = {0};
@@ -230,6 +241,7 @@ static int read_dht11(float *temperature, float *humidity)
     return 0;
 }
 
+// Retry the DHT11 sensor read, timing errors may happen
 static int get_stable_dht11(float *temp, float *hum)
 {
     for (int attempt = 0; attempt < 5; attempt++)
@@ -241,6 +253,7 @@ static int get_stable_dht11(float *temp, float *hum)
     return -1;
 }
 
+// Set up the button for simulating fire in tests
 static int init_sim_button(void)
 {
     if (rpi_gpio_setup_pull(BUTTON_PIN, GPIO_IN, GPIO_PUD_UP))
@@ -251,6 +264,7 @@ static int init_sim_button(void)
     return 0;
 }
 
+// See if the fire simulation button is pressed
 static int button_is_pressed(void)
 {
     unsigned level = 0;
@@ -261,11 +275,12 @@ static int button_is_pressed(void)
     return (level == BUTTON_PRESSED);
 }
 
-// ---------- Sensor thread ----------
+// Sensor yhread function
 void* sensor_task(void* arg)
 {
     (void)arg;
 
+    // Open the I2C device so this thread can communicate with the LCD
     int lcd_fd = open(I2C_DEV, O_RDWR);
     if (lcd_fd < 0)
     {
@@ -273,6 +288,7 @@ void* sensor_task(void* arg)
         return NULL;
     }
 
+    // Start up the LCD and display the startup message
     if (init_sim_button() != 0)
     {
         close(lcd_fd);
@@ -285,14 +301,14 @@ void* sensor_task(void* arg)
 
     printf("[Sensor] Task started\n");
 
-    int sim_fire = 0;
-    int last_button = 0;
+    int sim_fire = 0;          // Tracks if the fire simulation is ON or OFF
+    int last_button = 0;       // Detects a fresh button press to avoid repeated toggles
 
     while (1)
     {
         int pressed = button_is_pressed();
 
-        // Toggle simulation mode only on new press
+        // Change simulation mode only on a new button press
         if (pressed && !last_button)
         {
             sim_fire = !sim_fire;
@@ -302,7 +318,7 @@ void* sensor_task(void* arg)
             else
                 printf("[Sensor] Button pressed -> SIMULATED FIRE OFF\n");
 
-            usleep(200000); // simple debounce
+            usleep(200000); // simple debounce so one press does not toggle many times
         }
 
         last_button = pressed;
@@ -332,6 +348,7 @@ void* sensor_task(void* arg)
                 if ((int)temp >= THRESHOLD)
                     fire = 1;
 
+                // Safely update the temperature and fire status before other tasks check them
                 sem_wait(&fire_sem);
                 current_temp = (int)temp;
                 fire_status = fire;

@@ -60,13 +60,14 @@ void* alarm_task(void* arg)
         current_fire = fire_status;
         sem_post(&fire_sem);
 
-        // if the  fire
+        // if fire is detected and the buzzer is not already active, trigger the alarm
         if (current_fire && !buzzer_active)
         {
             buzzer_on();
             buzzer_active = 1;
             printf("[Alarm] FIRE DETECTED! Buzzer ON\n");
         }
+        // if the fire condition clears and the buzzer was active, turn it off
         else if (!current_fire && buzzer_active)
         {
             buzzer_off();
@@ -74,6 +75,7 @@ void* alarm_task(void* arg)
             printf("[Alarm] Fire cleared. Buzzer OFF\n");
         }
 
+         // a tiny pause so the loop does not consume CPU continuously
         sleep(1);
     }
 
